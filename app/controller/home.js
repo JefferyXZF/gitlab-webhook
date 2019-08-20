@@ -27,6 +27,23 @@ class HomeController extends Controller {
         ':' +
         date.getSeconds()
       const targetBranch = body.object_attributes.target_branch
+      const sourceBranch = body.object_attributes.source_branch
+      const lastCommit = body.object_attributes.last_commit
+        ? body.object_attributes.last_commit.message
+        : ''
+      const lastCommitArr = lastCommit.split('--user=')
+      const commitPerson =
+        lastCommitArr.length > 1 ? lastCommitArr[1].replace('\n', '') : ''
+      let commitPersonPhone = ''
+      if (commitPerson) {
+        config.peopelList &&
+          config.peopelList.forEach(person => {
+            if (person.name === commitPerson) {
+              commitPersonPhone = person.phone
+              return false
+            }
+          })
+      }
       let msg = ''
       let isSend = false
       if (eventType === 'merge_request') {
@@ -37,7 +54,9 @@ class HomeController extends Controller {
                     \>发起人：${username}
                     \>时间：<font color=\"info\">${dateFormat}</font>
                     \>项目：<font color=\"info\">${projectName}</font>
+                    \>来源分支：<font color=\"info\">${sourceBranch}</font>
                     \>目标分支：<font color=\"info\">${targetBranch}</font>
+                    \>最后提交信息：<font color=\"info\">${lastCommit}</font>
                     \>请求链接：[${mergeUrl}](${mergeUrl})`
             await ctx.curl(config.webhook, {
               method: 'POST',
@@ -55,11 +74,55 @@ class HomeController extends Controller {
             break
           case 'merged':
             // 合并成功
+            if (commitPersonPhone) {
+              await ctx.curl(config.webhook, {
+                method: 'POST',
+                contentType: 'json',
+                data: {
+                  msgtype: 'text',
+                  text: {
+                    content: '【合并请求完成通知】',
+                    mentioned_mobile_list: [commitPersonPhone]
+                  }
+                },
+                dataType: 'json'
+              })
+            }
             msg = `\*\*合并请求已完成\*\*
-                    \>发起人：${username}
+                    \>发起人：${commitPerson || '未知'}
+                    \>合并人：${username}
                     \>时间：<font color=\"info\">${dateFormat}</font>
                     \>项目：<font color=\"info\">${projectName}</font>
+                    \>来源分支：<font color=\"info\">${sourceBranch}</font>
                     \>目标分支：<font color=\"info\">${targetBranch}</font>
+                    \>最后提交信息：<font color=\"info\">${lastCommit}</font>
+                    \>请求链接：[${mergeUrl}](${mergeUrl})`
+            isSend = true
+            break
+          case 'closed':
+            // 请求关闭
+            if (commitPersonPhone) {
+              await ctx.curl(config.webhook, {
+                method: 'POST',
+                contentType: 'json',
+                data: {
+                  msgtype: 'text',
+                  text: {
+                    content: '【合并请求关闭通知】',
+                    mentioned_mobile_list: [commitPersonPhone]
+                  }
+                },
+                dataType: 'json'
+              })
+            }
+            msg = `\*\*合并请求已关闭\*\*
+                    \>发起人：${commitPerson || '未知'}
+                    \>关闭人：${username}
+                    \>时间：<font color=\"info\">${dateFormat}</font>
+                    \>项目：<font color=\"info\">${projectName}</font>
+                    \>来源分支：<font color=\"info\">${sourceBranch}</font>
+                    \>目标分支：<font color=\"info\">${targetBranch}</font>
+                    \>最后提交信息：<font color=\"info\">${lastCommit}</font>
                     \>请求链接：[${mergeUrl}](${mergeUrl})`
             isSend = true
             break
@@ -77,9 +140,11 @@ class HomeController extends Controller {
             },
             dataType: 'json'
           })
+          this.ctx.body = '消息推送成功！'
+        } else {
+          this.ctx.body = '消息类型${state}不合法'
         }
       }
-      this.ctx.body = '消息推送成功！'
     } catch (ex) {
       console.log(ex)
       this.ctx.body = '请求参数不合法'
