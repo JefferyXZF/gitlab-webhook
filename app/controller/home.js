@@ -31,9 +31,13 @@ class HomeController extends Controller {
       const lastCommit = body.object_attributes.last_commit
         ? body.object_attributes.last_commit.message
         : ''
-      const lastCommitArr = lastCommit.split('--user=')
+      const lastCommitUserArr = lastCommit.match(
+        /--user=[a-zA-Z\d\u4e00-\u9fa5]+\s{0,1}/g
+      )
       const commitPerson =
-        lastCommitArr.length > 1 ? lastCommitArr[1].replace('\n', '') : ''
+        lastCommitUserArr && lastCommitUserArr[0]
+          ? lastCommitUserArr[0].replace(/--user=/g, '').replace(/\s+/g, '')
+          : null
       let commitPersonPhone = ''
       if (commitPerson) {
         config.peopelList &&
