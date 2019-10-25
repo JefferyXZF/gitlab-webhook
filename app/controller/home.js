@@ -2,11 +2,19 @@
 
 const Controller = require('egg').Controller
 const config = require('../../config/config')
+const redis = require('redis');
+const client = redis.createClient( 6379, '127.0.0.1');
 
 class HomeController extends Controller {
   async webhook() {
     const { ctx } = this
     const body = ctx.request.body
+    ctx.logger.info('****** gitlab-start *******')
+    ctx.logger.info('gitlab信息：%j', ctx.request.body)
+    ctx.logger.info('****** gitlab-end *******')
+    client.get('gitlabHookSend', (err, data)=>{
+      console.log(data)
+    });
     try {
       const eventType = body.event_type
       const state = body.object_attributes.state
@@ -148,6 +156,9 @@ class HomeController extends Controller {
         } else {
           this.ctx.body = '消息类型${state}不合法'
         }
+        ctx.logger.info('******** 调用小助手-start *********')
+        ctx.logger.info('小助手返回: %j', res)
+        ctx.logger.info('******** 调用小助手-end *********')
       }
     } catch (ex) {
       console.log(ex)
