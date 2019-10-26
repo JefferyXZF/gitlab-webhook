@@ -15,6 +15,14 @@ module.exports = appInfo => {
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1565921918697_5667';
 
+  config.redis = {
+    client: {
+      port: 6379,          // Redis port
+      host: '127.0.0.1',   // Redis host
+      password: '',
+      db: 0,
+    },
+  };
   // add your middleware config here
   config.middleware = [];
 
