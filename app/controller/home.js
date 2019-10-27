@@ -5,8 +5,17 @@ const config = require('../../config/config')
 
 class HomeController extends Controller {
   async webhook() {
-    const { ctx } = this
+    const { ctx, app } = this
     const body = ctx.request.body
+    ctx.logger.info('****** gitlab-start *******')
+    ctx.logger.info('gitlab信息：%j', ctx.request.body)
+    ctx.logger.info('****** gitlab-end *******')
+    const gitlabHookSend = await app.redis.get('gitlabHookSend')
+    if(gitlabHookSend === 'close') {
+      ctx.logger.info('消息推送开关已关闭！不发送推送！')
+      ctx.body = `消息推送开关已关闭！`
+      return
+    }
     try {
       const eventType = body.event_type
       const state = body.object_attributes.state
@@ -131,9 +140,9 @@ class HomeController extends Controller {
             isSend = true
             break
         }
-
+        let msgRes
         if (isSend) {
-          await ctx.curl(config.webhook, {
+          msgRes = await ctx.curl(config.webhook, {
             method: 'POST',
             contentType: 'json',
             data: {
@@ -148,6 +157,9 @@ class HomeController extends Controller {
         } else {
           this.ctx.body = '消息类型${state}不合法'
         }
+        ctx.logger.info('******** 调用小助手-start *********')
+        ctx.logger.info('小助手返回: %j', msgRes)
+        ctx.logger.info('******** 调用小助手-end *********')
       }
     } catch (ex) {
       console.log(ex)
